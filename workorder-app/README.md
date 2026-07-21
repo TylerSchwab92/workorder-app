@@ -8,6 +8,39 @@ backend/         Java REST API (Spring Boot, Maven)
 frontend/        Node/TS front end
 ```
 
+# Switching Between In-Memory and SQL Server
+
+The backend has two modes. No code changes needed to switch — just a different command.
+
+## In-memory (default, no setup needed)
+
+Data lives in a HashMap and resets to the same 3 sample rows every time you restart. Good for quick testing, UI work, or anything where you don't care about data sticking around.
+
+## Real SQL Server (Docker)
+
+Make sure the container's running first:
+
+command: mvn spring-boot:run "-Dspring-boot.run.profiles=jdbc"
+
+Data persists across restarts — it's a real database now, not memory. Connection details live in `backend/src/main/resources/application-jdbc.properties`.
+
+## How this works under the hood
+
+Two properties files, two configs:
+
+- `application.properties` — the default. In-memory storage, no database connection attempted at all.
+- `application-jdbc.properties` — only loaded when you pass `-Dspring-boot.run.profiles=jdbc`. Points at SQL Server running in Docker.
+
+Tests always run in-memory regardless of which mode you're developing in — `application-test.properties` (under `src/test/resources`) forces that, so `mvn test` never touches real data.
+
+## Useful Docker commands
+docker ps # is sqlserver running?
+docker start sqlserver # start it
+docker stop sqlserver # stop it (data is preserved)
+## Resetting the database back to the 3 sample rows
+docker exec -it sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong@Passw0rd" -C -d WorkOrders -Q "DELETE FROM wo.WorkOrders"
+docker exec -it sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong@Passw0rd" -C -d WorkOrders -i /schema.sql
+
 ## Run it
 
 Needs a JDK 17+ and Maven, both with internet access (Maven pulls
