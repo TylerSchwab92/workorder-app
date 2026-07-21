@@ -35,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@org.springframework.test.context.ActiveProfiles("test")
 class WorkOrderApiTests {
 
     @Value("${local.server.port}")

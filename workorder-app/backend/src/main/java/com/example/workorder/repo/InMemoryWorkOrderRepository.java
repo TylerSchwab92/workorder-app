@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
 // written to disk, so a restart wipes it clean.
 @Repository
 @ConditionalOnProperty(name = "workorder.storage", havingValue = "memory", matchIfMissing = true)
-public final class InMemoryWorkOrderRepository implements WorkOrderRepository {
+public class InMemoryWorkOrderRepository implements WorkOrderRepository {
 
     private final Map<Long, WorkOrder> store = new ConcurrentHashMap<>();
     private final AtomicLong nextId = new AtomicLong(1);

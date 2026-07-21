@@ -26,8 +26,7 @@ import java.util.Optional;
 // against one table.
 @Repository
 @ConditionalOnProperty(name = "workorder.storage", havingValue = "jdbc")
-public final class JdbcWorkOrderRepository implements WorkOrderRepository {
-
+public class JdbcWorkOrderRepository implements WorkOrderRepository {
     private final DataSource dataSource;
 
     public JdbcWorkOrderRepository(DataSource dataSource) {
@@ -97,30 +96,26 @@ public final class JdbcWorkOrderRepository implements WorkOrderRepository {
 
     @Override
     public WorkOrder save(WorkOrder updated) {
-        // The UpdatedAt trigger in schema.sql sets this too, but we set
-        // it here as well so the row we hand back is accurate right
-        // away.
         String sql = "UPDATE wo.WorkOrders "
-                + "SET Title = ?, Description = ?, Status = ?, AssignedTo = ?, UpdatedAt = SYSUTCDATETIME() "
-                + "OUTPUT INSERTED.Id, INSERTED.Title, INSERTED.Description, INSERTED.Status, "
-                + "       INSERTED.AssignedTo, INSERTED.CreatedAt, INSERTED.UpdatedAt "
+                + "SET Title = ?, Description = ?, Status = ?, AssignedTo = ? "
                 + "WHERE Id = ?";
         try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement(sql)) {
+            PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, updated.title);
             setNullableString(ps, 2, updated.description);
             ps.setString(3, updated.status.name());
             setNullableString(ps, 4, updated.assignedTo);
             ps.setLong(5, updated.id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
-                    throw new NotFoundException("Work order " + updated.id + " not found");
-                }
-                return map(rs);
+            int rowsAffected = ps.executeUpdate();
+            if (rowsAffected == 0) {
+                throw new NotFoundException("Work order " + updated.id + " not found");
             }
         } catch (SQLException e) {
             throw new RuntimeException("Failed to update work order " + updated.id, e);
         }
+
+        return findById(updated.id)
+                .orElseThrow(() -> new NotFoundException("Work order " + updated.id + " not found"));
     }
 
     private static void setNullableString(PreparedStatement ps, int index, String value) throws SQLException {
