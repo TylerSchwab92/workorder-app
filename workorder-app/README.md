@@ -37,6 +37,7 @@ Tests always run in-memory regardless of which mode you're developing in — `ap
 docker ps # is sqlserver running?
 docker start sqlserver # start it
 docker stop sqlserver # stop it (data is preserved)
+
 ## Resetting the database back to the 3 sample rows
 docker exec -it sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong@Passw0rd" -C -d WorkOrders -Q "DELETE FROM wo.WorkOrders"
 docker exec -it sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong@Passw0rd" -C -d WorkOrders -i /schema.sql
