@@ -1,0 +1,14 @@
+{
+  "name": "workorder-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal Node.js/TypeScript UI for the Work Order API",
+  "scripts": {
+    "build": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json",
+    "start": "npm run build && node dist/server.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  }
+}

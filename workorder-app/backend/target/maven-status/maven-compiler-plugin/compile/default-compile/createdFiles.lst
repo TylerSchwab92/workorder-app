@@ -1,0 +1,11 @@
+com\example\workorder\validation\ValidationException.class
+com\example\workorder\model\WorkOrder.class
+com\example\workorder\repo\InMemoryWorkOrderRepository.class
+com\example\workorder\validation\ConflictException.class
+com\example\workorder\WorkOrderController.class
+com\example\workorder\model\Status.class
+com\example\workorder\validation\NotFoundException.class
+com\example\workorder\repo\JdbcWorkOrderRepository.class
+com\example\workorder\repo\WorkOrderRepository.class
+com\example\workorder\WorkOrderApplication.class
+com\example\workorder\GlobalExceptionHandler.class

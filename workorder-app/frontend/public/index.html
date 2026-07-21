@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Work Orders</title>
+    <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+    <main>
+        <h1>Work Orders</h1>
+
+        <div id="error-banner" class="error-banner" role="alert" hidden></div>
+
+        <section class="create-panel">
+            <h2>New work order</h2>
+            <form id="create-form">
+                <label for="title-input">Title <span class="required">*</span></label>
+                <input id="title-input" name="title" type="text" maxlength="200" required />
+
+                <label for="description-input">Description</label>
+                <textarea id="description-input" name="description" rows="2" maxlength="4000"></textarea>
+
+                <label for="assignedTo-input">Assigned to</label>
+                <input id="assignedTo-input" name="assignedTo" type="text" maxlength="100" />
+
+                <button id="create-button" type="submit">Add work order</button>
+            </form>
+        </section>
+
+        <section class="list-panel">
+            <div class="list-header">
+                <h2>All work orders</h2>
+                <button id="refresh-button" type="button">Refresh</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Assigned to</th>
+                        <th>Status</th>
+                        <th>Updated</th>
+                    </tr>
+                </thead>
+                <tbody id="workorders-body">
+                    <tr><td colspan="5" class="empty-state">Loading...</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+</body>
+</html>
