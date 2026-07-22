@@ -1,7 +1,14 @@
-// Client-side script.
+// Client-side script. Compiled to public/app.js and loaded directly by
+// index.html -- no bundler, no framework. Talks straight to the Java
+// backend's REST API (CORS is already turned on there).
 const STATUSES = ['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED'];
 const TERMINAL_STATUSES = new Set(['COMPLETED', 'CANCELLED']);
+const PAGE_SIZE = 5;
 const API_BASE = window.__API_BASE_URL__;
+// Holds whatever the last fetch returned (already filtered by status on
+// the server side), so paging through it doesn't need another request.
+let allItems = [];
+let currentPage = 1;
 function qs(selector) {
     const el = document.querySelector(selector);
     if (!el) {
@@ -59,7 +66,7 @@ function renderRow(wo) {
     assignedInput.dataset.originalValue = wo.assignedTo ?? '';
     assignedInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
-            assignedInput.blur(); // saves via the blur handler below
+            assignedInput.blur();
         }
     });
     assignedInput.addEventListener('blur', () => {
@@ -81,7 +88,6 @@ function renderRow(wo) {
         option.selected = status === wo.status;
         select.appendChild(option);
     }
-    // disable the control instead of letting the user hit a 409.
     select.disabled = TERMINAL_STATUSES.has(wo.status);
     select.addEventListener('change', () => onStatusChange(wo.id, select.value, select));
     statusCell.appendChild(select);
@@ -93,28 +99,66 @@ function renderRow(wo) {
 }
 async function loadWorkOrders() {
     clearError();
-    const tbody = qs('#workorders-body');
     const statusFilter = qs('#status-filter').value;
     const query = statusFilter ? `?status=${statusFilter}` : '';
     try {
         const data = await apiRequest(`/api/workorders${query}`);
-        tbody.innerHTML = '';
-        if (data.items.length === 0) {
-            const tr = document.createElement('tr');
-            const td = document.createElement('td');
-            td.colSpan = 5;
-            td.textContent = 'No work orders yet.';
-            td.className = 'empty-state';
-            tr.appendChild(td);
-            tbody.appendChild(tr);
-            return;
-        }
-        for (const wo of data.items) {
-            tbody.appendChild(renderRow(wo));
-        }
+        allItems = data.items;
+        currentPage = 1;
+        renderPage();
     }
     catch (err) {
         showError(err instanceof Error ? err.message : 'Failed to load work orders.');
+    }
+}
+// Renders whichever page of allItems is currently selected, without
+// making another request -- used for Previous/Next.
+function renderPage() {
+    const tbody = qs('#workorders-body');
+    tbody.innerHTML = '';
+    if (allItems.length === 0) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 5;
+        td.textContent = 'No work orders yet.';
+        td.className = 'empty-state';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        updatePaginationControls();
+        return;
+    }
+    const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
+    if (currentPage > totalPages) {
+        currentPage = totalPages;
+    }
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageItems = allItems.slice(start, start + PAGE_SIZE);
+    for (const wo of pageItems) {
+        tbody.appendChild(renderRow(wo));
+    }
+    updatePaginationControls();
+}
+function updatePaginationControls() {
+    const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
+    qs('#page-indicator').textContent = `Page ${currentPage} of ${totalPages}`;
+    qs('#prev-page-button').disabled = currentPage <= 1;
+    qs('#next-page-button').disabled = currentPage >= totalPages;
+}
+async function onStatusChange(id, newStatus, select) {
+    clearError();
+    const previousValue = select.dataset.previousValue ?? select.value;
+    select.disabled = true;
+    try {
+        await apiRequest(`/api/workorders/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: newStatus }),
+        });
+        await loadWorkOrders();
+    }
+    catch (err) {
+        showError(err instanceof Error ? err.message : 'Failed to update status.');
+        select.value = previousValue;
+        select.disabled = false;
     }
 }
 async function onAssignedToChange(id, newValue, input) {
@@ -133,23 +177,6 @@ async function onAssignedToChange(id, newValue, input) {
     }
     finally {
         input.disabled = false;
-    }
-}
-async function onStatusChange(id, newStatus, select) {
-    clearError();
-    const previousValue = select.dataset.previousValue ?? select.value;
-    select.disabled = true;
-    try {
-        await apiRequest(`/api/workorders/${id}`, {
-            method: 'PATCH',
-            body: JSON.stringify({ status: newStatus }),
-        });
-        await loadWorkOrders();
-    }
-    catch (err) {
-        showError(err instanceof Error ? err.message : 'Failed to update status.');
-        select.value = previousValue;
-        select.disabled = false;
     }
 }
 async function onCreateSubmit(event) {
@@ -189,6 +216,19 @@ function init() {
     });
     qs('#status-filter').addEventListener('change', () => {
         void loadWorkOrders();
+    });
+    qs('#prev-page-button').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderPage();
+        }
+    });
+    qs('#next-page-button').addEventListener('click', () => {
+        const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderPage();
+        }
     });
     void loadWorkOrders();
 }
