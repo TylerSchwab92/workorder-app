@@ -1,4 +1,14 @@
-// Client-side script.
+// Client-side script. Compiled to public/app.js and loaded directly by
+// index.html -- no bundler, no framework. Talks straight to the Java
+// backend's REST API (CORS is already turned on there).
+
+export {}; // needed so the `declare global` block below is allowed
+
+declare global {
+    interface Window {
+        __API_BASE_URL__: string;
+    }
+}
 
 interface WorkOrder {
     id: number;
@@ -10,18 +20,16 @@ interface WorkOrder {
     updatedAt: string;
 }
 
-export {}; // needed so the `declare global` block below is allowed
-
-declare global {
-    interface Window {
-        __API_BASE_URL__: string;
-    }
-}
-
 const STATUSES = ['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED'] as const;
 const TERMINAL_STATUSES = new Set(['COMPLETED', 'CANCELLED']);
+const PAGE_SIZE = 5;
 
 const API_BASE = window.__API_BASE_URL__;
+
+// Holds whatever the last fetch returned (already filtered by status on
+// the server side), so paging through it doesn't need another request.
+let allItems: WorkOrder[] = [];
+let currentPage = 1;
 
 function qs<T extends HTMLElement>(selector: string): T {
     const el = document.querySelector(selector);
@@ -88,7 +96,7 @@ function renderRow(wo: WorkOrder): HTMLTableRowElement {
     assignedInput.dataset.originalValue = wo.assignedTo ?? '';
     assignedInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
-            assignedInput.blur(); // saves via the blur handler below
+            assignedInput.blur();
         }
     });
     assignedInput.addEventListener('blur', () => {
@@ -111,8 +119,6 @@ function renderRow(wo: WorkOrder): HTMLTableRowElement {
         option.selected = status === wo.status;
         select.appendChild(option);
     }
-
-    // disable the control instead of letting the user hit a 409.
     select.disabled = TERMINAL_STATUSES.has(wo.status);
     select.addEventListener('change', () => onStatusChange(wo.id, select.value, select));
     statusCell.appendChild(select);
@@ -127,44 +133,54 @@ function renderRow(wo: WorkOrder): HTMLTableRowElement {
 
 async function loadWorkOrders(): Promise<void> {
     clearError();
-    const tbody = qs<HTMLTableSectionElement>('#workorders-body');
     const statusFilter = qs<HTMLSelectElement>('#status-filter').value;
     const query = statusFilter ? `?status=${statusFilter}` : '';
     try {
         const data = await apiRequest<{ items: WorkOrder[] }>(`/api/workorders${query}`);
-        tbody.innerHTML = '';
-        if (data.items.length === 0) {
-            const tr = document.createElement('tr');
-            const td = document.createElement('td');
-            td.colSpan = 5;
-            td.textContent = 'No work orders yet.';
-            td.className = 'empty-state';
-            tr.appendChild(td);
-            tbody.appendChild(tr);
-            return;
-        }
-        for (const wo of data.items) {
-            tbody.appendChild(renderRow(wo));
-        }
+        allItems = data.items;
+        currentPage = 1;
+        renderPage();
     } catch (err) {
         showError(err instanceof Error ? err.message : 'Failed to load work orders.');
     }
 }
-async function onAssignedToChange(id: number, newValue: string, input: HTMLInputElement): Promise<void> {
-    clearError();
-    input.disabled = true;
-    try {
-        await apiRequest(`/api/workorders/${id}`, {
-            method: 'PATCH',
-            body: JSON.stringify({ assignedTo: newValue || null }),
-        });
-        input.dataset.originalValue = newValue;
-    } catch (err) {
-        showError(err instanceof Error ? err.message : 'Failed to update assigned to.');
-        input.value = input.dataset.originalValue ?? '';
-    } finally {
-        input.disabled = false;
+
+// Renders whichever page of allItems is currently selected, without
+// making another request -- used for Previous/Next.
+function renderPage(): void {
+    const tbody = qs<HTMLTableSectionElement>('#workorders-body');
+    tbody.innerHTML = '';
+
+    if (allItems.length === 0) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 5;
+        td.textContent = 'No work orders yet.';
+        td.className = 'empty-state';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        updatePaginationControls();
+        return;
     }
+
+    const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
+    if (currentPage > totalPages) {
+        currentPage = totalPages;
+    }
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageItems = allItems.slice(start, start + PAGE_SIZE);
+
+    for (const wo of pageItems) {
+        tbody.appendChild(renderRow(wo));
+    }
+    updatePaginationControls();
+}
+
+function updatePaginationControls(): void {
+    const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
+    qs<HTMLSpanElement>('#page-indicator').textContent = `Page ${currentPage} of ${totalPages}`;
+    qs<HTMLButtonElement>('#prev-page-button').disabled = currentPage <= 1;
+    qs<HTMLButtonElement>('#next-page-button').disabled = currentPage >= totalPages;
 }
 
 async function onStatusChange(id: number, newStatus: string, select: HTMLSelectElement): Promise<void> {
@@ -181,6 +197,23 @@ async function onStatusChange(id: number, newStatus: string, select: HTMLSelectE
         showError(err instanceof Error ? err.message : 'Failed to update status.');
         select.value = previousValue;
         select.disabled = false;
+    }
+}
+
+async function onAssignedToChange(id: number, newValue: string, input: HTMLInputElement): Promise<void> {
+    clearError();
+    input.disabled = true;
+    try {
+        await apiRequest(`/api/workorders/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ assignedTo: newValue || null }),
+        });
+        input.dataset.originalValue = newValue;
+    } catch (err) {
+        showError(err instanceof Error ? err.message : 'Failed to update assigned to.');
+        input.value = input.dataset.originalValue ?? '';
+    } finally {
+        input.disabled = false;
     }
 }
 
@@ -221,6 +254,19 @@ function init(): void {
     });
     qs<HTMLSelectElement>('#status-filter').addEventListener('change', () => {
         void loadWorkOrders();
+    });
+    qs<HTMLButtonElement>('#prev-page-button').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderPage();
+        }
+    });
+    qs<HTMLButtonElement>('#next-page-button').addEventListener('click', () => {
+        const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderPage();
+        }
     });
     void loadWorkOrders();
 }
