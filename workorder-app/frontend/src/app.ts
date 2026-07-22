@@ -128,8 +128,10 @@ function renderRow(wo: WorkOrder): HTMLTableRowElement {
 async function loadWorkOrders(): Promise<void> {
     clearError();
     const tbody = qs<HTMLTableSectionElement>('#workorders-body');
+    const statusFilter = qs<HTMLSelectElement>('#status-filter').value;
+    const query = statusFilter ? `?status=${statusFilter}` : '';
     try {
-        const data = await apiRequest<{ items: WorkOrder[] }>('/api/workorders');
+        const data = await apiRequest<{ items: WorkOrder[] }>(`/api/workorders${query}`);
         tbody.innerHTML = '';
         if (data.items.length === 0) {
             const tr = document.createElement('tr');
@@ -215,6 +217,9 @@ function init(): void {
         void onCreateSubmit(e as SubmitEvent);
     });
     qs<HTMLButtonElement>('#refresh-button').addEventListener('click', () => {
+        void loadWorkOrders();
+    });
+    qs<HTMLSelectElement>('#status-filter').addEventListener('change', () => {
         void loadWorkOrders();
     });
     void loadWorkOrders();

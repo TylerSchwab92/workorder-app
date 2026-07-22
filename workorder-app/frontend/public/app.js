@@ -94,8 +94,10 @@ function renderRow(wo) {
 async function loadWorkOrders() {
     clearError();
     const tbody = qs('#workorders-body');
+    const statusFilter = qs('#status-filter').value;
+    const query = statusFilter ? `?status=${statusFilter}` : '';
     try {
-        const data = await apiRequest('/api/workorders');
+        const data = await apiRequest(`/api/workorders${query}`);
         tbody.innerHTML = '';
         if (data.items.length === 0) {
             const tr = document.createElement('tr');
@@ -183,6 +185,9 @@ function init() {
         void onCreateSubmit(e);
     });
     qs('#refresh-button').addEventListener('click', () => {
+        void loadWorkOrders();
+    });
+    qs('#status-filter').addEventListener('change', () => {
         void loadWorkOrders();
     });
     void loadWorkOrders();

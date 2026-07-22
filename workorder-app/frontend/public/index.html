@@ -29,10 +29,20 @@
         </section>
 
         <section class="list-panel">
-            <div class="list-header">
-                <h2>All work orders</h2>
+        <div class="list-header">
+        <h2>All work orders</h2>
+            <div class="list-controls">
+                <select id="status-filter" aria-label="Filter by status">
+                    <option value="">All statuses</option>
+                    <option value="OPEN">Open</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="ON_HOLD">On Hold</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="CANCELLED">Cancelled</option>
+                </select>
                 <button id="refresh-button" type="button">Refresh</button>
             </div>
+        </div>
             <table>
                 <thead>
                     <tr>
