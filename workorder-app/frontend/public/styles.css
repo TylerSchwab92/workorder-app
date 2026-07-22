@@ -90,6 +90,8 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 #create-button { grid-column: span 2; justify-self: start; }
 
 .list-header { display: flex; justify-content: space-between; align-items: center; }
+.list-controls {display: flex; gap: 8px; align-items: center;}
+.list-controls select {padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.85rem;}
 .list-header h2 { margin: 0; }
 #refresh-button { background: white; color: var(--accent); border: 1px solid var(--accent); }
 
