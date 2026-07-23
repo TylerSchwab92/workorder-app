@@ -97,14 +97,16 @@ function renderRow(wo) {
     tr.appendChild(updatedCell);
     return tr;
 }
-async function loadWorkOrders() {
+async function loadWorkOrders(resetToFirstPage = true) {
     clearError();
     const statusFilter = qs('#status-filter').value;
     const query = statusFilter ? `?status=${statusFilter}` : '';
     try {
         const data = await apiRequest(`/api/workorders${query}`);
         allItems = data.items;
-        currentPage = 1;
+        if (resetToFirstPage) {
+            currentPage = 1;
+        }
         renderPage();
     }
     catch (err) {
@@ -153,7 +155,7 @@ async function onStatusChange(id, newStatus, select) {
             method: 'PATCH',
             body: JSON.stringify({ status: newStatus }),
         });
-        await loadWorkOrders();
+        await loadWorkOrders(false);
     }
     catch (err) {
         showError(err instanceof Error ? err.message : 'Failed to update status.');
