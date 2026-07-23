@@ -131,14 +131,16 @@ function renderRow(wo: WorkOrder): HTMLTableRowElement {
     return tr;
 }
 
-async function loadWorkOrders(): Promise<void> {
+async function loadWorkOrders(resetToFirstPage: boolean = true): Promise<void> {
     clearError();
     const statusFilter = qs<HTMLSelectElement>('#status-filter').value;
     const query = statusFilter ? `?status=${statusFilter}` : '';
     try {
         const data = await apiRequest<{ items: WorkOrder[] }>(`/api/workorders${query}`);
         allItems = data.items;
-        currentPage = 1;
+        if (resetToFirstPage) {
+            currentPage = 1;
+        }
         renderPage();
     } catch (err) {
         showError(err instanceof Error ? err.message : 'Failed to load work orders.');
@@ -192,7 +194,7 @@ async function onStatusChange(id: number, newStatus: string, select: HTMLSelectE
             method: 'PATCH',
             body: JSON.stringify({ status: newStatus }),
         });
-        await loadWorkOrders();
+        await loadWorkOrders(false);
     } catch (err) {
         showError(err instanceof Error ? err.message : 'Failed to update status.');
         select.value = previousValue;
